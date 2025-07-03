@@ -186,11 +186,9 @@ def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, par
         print(f"    Warning: Failed to save {filename}")
 
 
-def extract_paragraphs_from_page(img_path: str, out_dir: str) -> int:
-    """
-    Process a single page with enhanced paragraph extraction.
-    Returns the number of paragraphs extracted.
-    """
+# Process an img and returns the number of paragraphs extracted.s
+def extract_paragraphs(img_path: str, out_dir: str) -> int:
+
     page_id = os.path.splitext(os.path.basename(img_path))[0]
     print(f"Processing page: {page_id}")
 
@@ -203,10 +201,6 @@ def extract_paragraphs_from_page(img_path: str, out_dir: str) -> int:
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     binary = binarize_image(gray)
    
-    # Morphological cleaning
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    binary = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
-
     # Detect and mask tables
     table_mask = detect_tables(binary)
     text_only = cv2.bitwise_and(binary, cv2.bitwise_not(table_mask))
@@ -284,10 +278,9 @@ def main():
     total_paragraphs = 0
     for fname in files:
         img_path = os.path.join(config.input_dir, fname)
-        para_count = extract_paragraphs_from_page(img_path, config.output_dir)
+        para_count = extract_paragraphs(img_path, config.output_dir)
         total_paragraphs += para_count
    
-    print(f"Processing complete!")
     print(f"Total paragraphs extracted: {total_paragraphs}")
     print(f"Average paragraphs per page: {total_paragraphs / len(files):.1f}")
 
