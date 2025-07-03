@@ -193,13 +193,12 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     print(f"Processing page: {page_id}")
 
     # Load and preprocess image
-    img = cv2.imread(img_path)
+    img = cv2.imread(img_path, 0)
     if img is None:
         print(f"  Error: Could not load image {img_path}")
         return 0
    
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    binary = binarize_image(gray)
+    binary = binarize_image(img)
    
     # Detect and mask tables
     table_mask = detect_tables(binary)
