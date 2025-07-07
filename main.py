@@ -169,7 +169,8 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
                 para_boxes.append(box)
                 accepted_count += 1
         
-        para_idx += 1
+            para_idx += 1
+        
         total_merged_segments += accepted_count
 
     print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs\n")
