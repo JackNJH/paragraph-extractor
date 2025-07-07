@@ -2,4 +2,4 @@
 
 input_dir = "C:\path\To\images"
 output_dir = "outputs" # default, will be ignored by git
-min_para_size = 20
+
