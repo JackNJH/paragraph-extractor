@@ -161,7 +161,6 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
             crop = binary[y0:y1, x0:x1]
             h, w = crop.shape
             pixel_density = np.sum(crop > 0) / (w * h)
-            print("PIXEL DENSITY: ", pixel_density)
 
             # This kinda works cause pictures would have higher density and tables would have lower (due to spacing in cells)
             if pixel_density > 0.3 or pixel_density < 0.11:
