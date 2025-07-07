@@ -162,7 +162,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
             h, w = crop.shape
             pixel_density = np.sum(crop > 0) / (w * h)
 
-            # This kinda works cause pictures would have higher density and tables would have lower (due to spacing in cells)
+            # This kinda works cause pictures would have higher pixel density and tables would have lower (due to spacing in cells)
             if pixel_density > 0.3 or pixel_density < 0.11:
                 print(f"    Skipping paragraph {para_idx:02d} in column {col_idx + 1} (likely to be image/table)")
             else:
