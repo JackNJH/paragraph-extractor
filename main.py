@@ -129,15 +129,15 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     total_row_segments = 0
     total_merged_segments = 0
    
+   # Detects each ROW in a column
     for col_idx, (x0, x1) in enumerate(col_segs):
         col_img = binary[:, x0:x1]
        
-        # Line detection
         row_proj = np.sum(binary > 0, axis=1)
-        row_segs = find_segments(row_proj, min_thresh=8)
+        row_segs = find_segments(row_proj, min_thresh=10)
         row_segs = filter_segments(row_segs, min_size=5)
        
-        # Adaptive merging
+        # This merges the rows to form a paragraph
         merged_segs = merge_segments(row_segs)
         merged_segs = filter_segments(merged_segs, min_size=20)
        
