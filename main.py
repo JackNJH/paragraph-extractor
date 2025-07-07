@@ -146,7 +146,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
        
         print(f"    Column {col_idx + 1}: {len(row_segs)} lines → {len(merged_segs)} paragraphs")
        
-        for y0, y1 in row_segs:
+        for y0, y1 in merged_segs:
             box = (x0, y0, x1 - x0, y1 - y0)
             para_boxes.append(box)
 
