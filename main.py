@@ -5,24 +5,6 @@ import numpy as np
 from typing import List, Tuple, Optional
 
 
-def binarize_image(gray_img: np.ndarray) -> np.ndarray:
-    """
-    Binarize a grayscale image using Otsu's method with inversion.
-    Includes adaptive preprocessing for better results.
-    """
-    # Apply slight Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray_img, (3, 3), 0)
-   
-    # Use Otsu's method
-    _, binary = cv2.threshold(
-        blurred,
-        0,
-        255,
-        cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU
-    )
-    return binary
-
-
 def compute_projection(binary: np.ndarray, axis: int) -> np.ndarray:
     """
     Compute the projection histogram of a binary image.
@@ -113,57 +95,6 @@ def filter_segments(segments: List[Tuple[int, int]], min_size: int = 15) -> List
     return [(start, end) for start, end in segments if end - start >= min_size]
 
 
-def detect_tables(binary: np.ndarray) -> np.ndarray:
-    """
-    Enhanced table detection using multiple morphological operations.
-    """
-    h, w = binary.shape
-    mask = np.zeros_like(binary, dtype=np.uint8)
-   
-    # Detect horizontal and vertical lines
-    hor_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (w // 15, 1))
-    vert_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, h // 15))
-   
-    hor_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, hor_kernel)
-    vert_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, vert_kernel)
-   
-    # Combine line detections
-    table_lines = cv2.bitwise_or(hor_lines, vert_lines)
-   
-    # Find intersections (stronger indication of tables)
-    intersections = cv2.bitwise_and(hor_lines, vert_lines)
-   
-    # Dilate intersections to create table regions
-    if np.any(intersections):
-        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (20, 20))
-        table_regions = cv2.morphologyEx(intersections, cv2.MORPH_DILATE, kernel)
-        mask = cv2.bitwise_or(mask, table_regions)
-   
-    # Also check for dense grid patterns
-    comps, _, stats, _ = cv2.connectedComponentsWithStats(table_lines, connectivity=8)
-    for i in range(1, comps):
-        x, y, ww, hh, area = stats[i]
-        # More restrictive criteria for table detection
-        if ww > w * 0.15 and hh > h * 0.1 and area > (ww * hh * 0.1):
-            mask[y:y+hh, x:x+ww] = 255
-   
-    return mask
-
-
-def mask_overlaps(box: Tuple[int, int, int, int], mask: np.ndarray, threshold: float = 0.3) -> bool:
-    """
-    Check if a bounding box significantly overlaps any masked region.
-    Uses a threshold to allow minor overlaps.
-    """
-    x, y, w, h = box
-    if x < 0 or y < 0 or x + w > mask.shape[1] or y + h > mask.shape[0]:
-        return True  # Out of bounds
-   
-    roi = mask[y:y+h, x:x+w]
-    overlap_ratio = np.sum(roi > 0) / (w * h)
-    return overlap_ratio > threshold
-
-
 def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
     """
     Crop a paragraph region and save as an image file.
@@ -186,7 +117,7 @@ def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, par
         print(f"    Warning: Failed to save {filename}")
 
 
-# Process an img and returns the number of paragraphs extracted.s
+# Process an img and returns the number of paragraphs extracted
 def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
     page_id = os.path.splitext(os.path.basename(img_path))[0]
@@ -198,14 +129,10 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
         print(f"  Error: Could not load image {img_path}")
         return 0
    
-    binary = binarize_image(img)
-   
-    # Detect and mask tables
-    table_mask = detect_tables(binary)
-    text_only = cv2.bitwise_and(binary, cv2.bitwise_not(table_mask))
+    _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
     # Column segmentation
-    vert_proj = compute_projection(text_only, axis=0)
+    vert_proj = compute_projection(binary, axis=0)
     col_segs = find_segments(vert_proj, min_thresh=10)  # Slightly higher threshold
     col_segs = filter_segments(col_segs, min_size=50)  # Filter narrow columns
    
@@ -216,7 +143,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     total_merged_segments = 0
    
     for col_idx, (x0, x1) in enumerate(col_segs):
-        col_img = text_only[:, x0:x1]
+        col_img = binary[:, x0:x1]
        
         # Line detection
         row_proj = compute_projection(col_img, axis=1)
@@ -234,8 +161,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
        
         for y0, y1 in merged_segs:
             box = (x0, y0, x1 - x0, y1 - y0)
-            if not mask_overlaps(box, table_mask):
-                para_boxes.append(box)
+            para_boxes.append(box)
 
     print(f"  Total: {total_raw_segments} line segments → {total_merged_segments} paragraphs")
     print(f"  Final paragraph boxes: {len(para_boxes)} (after table filtering)")
@@ -259,7 +185,6 @@ def main():
     print(f"Input: {config.input_dir}")
     print(f"Output: {config.output_dir}")
     print(f"Min paragraph size: {config.min_para_size}px")
-    print(f"Table overlap threshold: {config.table_overlap_threshold}\n")
    
     # Find PNG files
     if not os.path.exists(config.input_dir):
