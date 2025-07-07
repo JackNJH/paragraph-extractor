@@ -151,7 +151,6 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
             para_boxes.append(box)
 
     print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs")
-    print(f"  Final paragraph boxes: {len(para_boxes)} (after table filtering)")
 
     # Sort paragraphs in reading order (left-to-right, top-to-bottom)
     para_boxes.sort(key=lambda b: (b[0] // 100, b[1]))  # Group by approximate column, then by y-position
