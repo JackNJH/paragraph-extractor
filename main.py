@@ -90,14 +90,12 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
     return int(adaptive_gap)
 
 
+# Save extracted paragraphs to imgs in specified output directory
 def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
-    """
-    Crop a paragraph region and save as an image file.
-    """
     x, y, w, h = box
    
     # Add small padding to improve readability
-    padding = 5
+    padding = 10
     x_pad = max(0, x - padding)
     y_pad = max(0, y - padding)
     w_pad = min(img.shape[1] - x_pad, w + 2 * padding)
@@ -163,7 +161,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
             box = (x0, y0, x1 - x0, y1 - y0)
             para_boxes.append(box)
 
-    print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs")
+    print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs\n")
 
     # Sort paragraphs in reading order (left-to-right, top-to-bottom)
     para_boxes.sort(key=lambda b: (b[0] // 100, b[1]))  # Group by approximate column, then by y-position
@@ -175,16 +173,12 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     for idx, box in enumerate(para_boxes, start=1):
         save_crop(img, box, page_id, idx, out_dir)
 
-    print(f"  Saved {len(para_boxes)} paragraphs for {page_id}\n")
     return len(para_boxes)
 
 
 def main():
     input_dir = "example imgs"
     output_dir = "outputs"
-
-    print(f"Input: {input_dir}")
-    print(f"Output: {output_dir}")
    
     # Find PNG files
     if not os.path.exists(input_dir):
