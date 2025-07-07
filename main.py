@@ -35,18 +35,19 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
         max_gap = calculate_adaptive_gap(segments)
    
     merged = []
-    current_start, current_end = segments[0]
+    current_start, current_end = segments[0] # Take the first segment start and end as current
    
-    for start, end in segments[1:]:
-        if start - current_end <= max_gap:
-            # Extend current segment
-            current_end = end
+   # If the NEXT segment's start doesn't exceed map_gap, merge
+    for next_start, next_end in segments[1:]:
+        if next_start - current_end <= max_gap:
+            current_end = next_end
         else:
+            # Else, start a new segment
             merged.append((current_start, current_end))
-            current_start, current_end = start, end
+            current_start, current_end = next_start, next_end
    
     merged.append((current_start, current_end))
-    return merged
+    return merged # list of paragraphs
 
 
 def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 20) -> int:
