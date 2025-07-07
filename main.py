@@ -5,17 +5,8 @@ import numpy as np
 from typing import List, Tuple, Optional
 
 
-def compute_projection(binary: np.ndarray, axis: int) -> np.ndarray:
-    """
-    Compute the projection histogram of a binary image.
-    """
-    return np.sum(binary > 0, axis=axis)
-
-
+# Define segment areas based on 1D histogram given
 def find_segments(hist: np.ndarray, min_thresh: int = 1) -> List[Tuple[int, int]]:
-    """
-    Identify contiguous spans in a 1D histogram above a threshold.
-    """
     segments = []
     in_seg = False
     start = 0
@@ -88,13 +79,6 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
     return merged
 
 
-def filter_segments(segments: List[Tuple[int, int]], min_size: int = 15) -> List[Tuple[int, int]]:
-    """
-    Filter out segments that are too small to be meaningful paragraphs.
-    """
-    return [(start, end) for start, end in segments if end - start >= min_size]
-
-
 def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
     """
     Crop a paragraph region and save as an image file.
@@ -123,7 +107,6 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     page_id = os.path.splitext(os.path.basename(img_path))[0]
     print(f"Processing page: {page_id}")
 
-    # Load and preprocess image
     img = cv2.imread(img_path, 0)
     if img is None:
         print(f"  Error: Could not load image {img_path}")
@@ -131,40 +114,35 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
    
     _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # Column segmentation
-    vert_proj = compute_projection(binary, axis=0)
-    col_segs = find_segments(vert_proj, min_thresh=10)  # Slightly higher threshold
-    col_segs = filter_segments(col_segs, min_size=50)  # Filter narrow columns
+    # Detect blocks of paragraphs first before counting 'lines' in each
+    col_histogram = np.sum(binary > 0, axis=0)
+    col_segs = find_segments(col_histogram, min_thresh=10)  
    
     print(f"  Detected {len(col_segs)} columns")
 
     para_boxes = []
-    total_raw_segments = 0
+    total_row_segments = 0
     total_merged_segments = 0
    
     for col_idx, (x0, x1) in enumerate(col_segs):
         col_img = binary[:, x0:x1]
        
         # Line detection
-        row_proj = compute_projection(col_img, axis=1)
-        raw_segs = find_segments(row_proj, min_thresh=8)
-        raw_segs = filter_segments(raw_segs, min_size=5)
+        row_histogram = np.sum(col_img > 0, axis=1)
+        row_segs = find_segments(row_histogram, min_thresh=10)
        
-        # Adaptive merging
-        merged_segs = merge_segments(raw_segs)  # Uses adaptive gap calculation
-        merged_segs = filter_segments(merged_segs, min_size=20)  # Filter small paragraphs
+        merged_segs = merge_segments(row_segs) 
        
-        total_raw_segments += len(raw_segs)
+        total_row_segments += len(row_segs)
         total_merged_segments += len(merged_segs)
        
-        print(f"    Column {col_idx + 1}: {len(raw_segs)} lines → {len(merged_segs)} paragraphs")
+        print(f"    Column {col_idx + 1}: {len(row_segs)} lines → {len(merged_segs)} paragraphs")
        
         for y0, y1 in merged_segs:
             box = (x0, y0, x1 - x0, y1 - y0)
             para_boxes.append(box)
 
-    print(f"  Total: {total_raw_segments} line segments → {total_merged_segments} paragraphs")
-    print(f"  Final paragraph boxes: {len(para_boxes)} (after table filtering)")
+    print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs")
 
     # Sort paragraphs in reading order (left-to-right, top-to-bottom)
     para_boxes.sort(key=lambda b: (b[0] // 100, b[1]))  # Group by approximate column, then by y-position
