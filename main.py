@@ -28,40 +28,7 @@ def filter_segments(segments: List[Tuple[int, int]], min_size: int = 15) -> List
     return [(start, end) for start, end in segments if end - start >= min_size]
 
 
-def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 20) -> int:
-    """
-    Calculate adaptive gap threshold based on typical line spacing in the document.
-    """
-    if len(segments) < 2:
-        return default_gap
-   
-    # Calculate gaps between consecutive segments
-    gaps = []
-    for i in range(len(segments) - 1):
-        gap = segments[i + 1][0] - segments[i][1]
-        if gap > 0:
-            gaps.append(gap)
-   
-    if not gaps:
-        return default_gap
-   
-    # Use median gap as base, with reasonable bounds
-    median_gap = np.median(gaps)
-    adaptive_gap = max(min(median_gap * 1.5, 50), 10)  # Between 10-50 pixels
-   
-    return int(adaptive_gap)
-
-
 def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = None) -> List[Tuple[int, int]]:
-    """
-    Merge 1D segments that are separated by no more than max_gap.
-    If max_gap is None, calculate it adaptively.
-    """
-    if not segments:
-        return []
-   
-    # Sort segments by start position
-    segments = sorted(segments)
    
     # Calculate adaptive gap if not provided
     if max_gap is None:
@@ -81,6 +48,27 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
     merged.append((current_start, current_end))
     return merged
 
+
+def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 20) -> int:
+
+    if len(segments) < 2:
+        return default_gap
+   
+    # Calculate gaps between consecutive segments
+    gaps = []
+    for i in range(len(segments) - 1):
+        gap = segments[i + 1][0] - segments[i][1]
+        if gap > 0:
+            gaps.append(gap)
+   
+    if not gaps:
+        return default_gap
+   
+    # Use median gap as base, with reasonable bounds
+    median_gap = np.median(gaps)
+    adaptive_gap = max(min(median_gap * 1.5, 50), 10)  # Between 10-50 pixels
+   
+    return int(adaptive_gap)
 
 
 def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
