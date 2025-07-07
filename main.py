@@ -3,6 +3,18 @@ import cv2
 import numpy as np
 from typing import List, Tuple, Optional
 
+# Use for debugging during dev, visualizes columns/rows/paragraphs
+def debug_img(img: np.ndarray, segments: list[tuple[int, int, int, int]], color: tuple[int, int, int], out_dir: str, filename: str) -> None:
+    debug_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    # No y coords for columns cause info isn't known yet
+    for x, y, w, h in segments:
+        cv2.rectangle(debug_img, (x, y), (x + w, y + h), color, 2)
+
+    os.makedirs(out_dir, exist_ok=True)
+    cv2.imwrite(os.path.join(out_dir, filename), debug_img)
+
+
 # Define segment areas based on 1D histogram given
 def find_segments(hist: np.ndarray, min_thresh: int = 1) -> List[Tuple[int, int]]:
     segments = []
@@ -111,16 +123,8 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     col_segs = find_segments(col_histogram, min_thresh=5)
     col_segs = filter_segments(col_segs, min_size=50)
     
-    # --- FOR DEBUGGING COLUMNS ---
-    # debug_img = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-    # for x0, x1 in col_segs:
-    #     cv2.rectangle(debug_img, (x0, 0), (x1, binary.shape[0]-1), (0, 255, 0), 2)
+    # debug_img(binary, [(x0, 0, x1 - x0, binary.shape[0]) for x0, x1 in col_segs], (0, 255, 0), "debug imgs/columns", f"{page_id}_col_segs.png")
 
-    # debug_dir = os.path.join("debug imgs", "columns")
-    # os.makedirs(debug_dir, exist_ok=True)
-    # debug_path = os.path.join(debug_dir, f"{page_id}_col_segs.png")
-    # cv2.imwrite(debug_path, debug_img)
-   
     print(f"  Detected {len(col_segs)} columns")
 
     para_boxes = []
@@ -135,29 +139,13 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
         row_segs = find_segments(row_proj, min_thresh=5)
         row_segs = filter_segments(row_segs, min_size=5)
 
-        # --- FOR DEBUGGING ROWS ---
-        # debug_img_row = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-        # for y0, y1 in row_segs:
-        #     cv2.rectangle(debug_img_row, (x0, y0), (x1 - 1, y1), (0, 255, 255), 2)
-
-        # row_debug_dir = os.path.join("debug imgs", "rows")
-        # os.makedirs(row_debug_dir, exist_ok=True)
-        # row_debug_path = os.path.join(row_debug_dir, f"{page_id}_col{col_idx + 1}_rows.png")
-        # cv2.imwrite(row_debug_path, debug_img_row)
+        # debug_img(binary, [(x0, y0, x1 - x0, y1 - y0) for y0, y1 in row_segs], (0, 255, 255), "debug imgs/rows", f"{page_id}_col{col_idx + 1}_rows.png")
        
         # This merges the rows to form a paragraph
         merged_segs = merge_segments(row_segs)
         merged_segs = filter_segments(merged_segs, min_size=5)
 
-    #    # --- FOR DEBUGGING PARAGRAPHS ---
-    #     debug_img = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-    #     for y0, y1 in merged_segs:
-    #         cv2.rectangle(debug_img, (x0, y0), (x1, y1), (255, 0, 0), 2)
-
-    #     debug_dir = os.path.join("debug imgs", "paragraphs")
-    #     os.makedirs(debug_dir, exist_ok=True)
-    #     debug_path = os.path.join(debug_dir, f"{page_id}_col{col_idx+1:02d}_paragraphs.png")
-    #     cv2.imwrite(debug_path, debug_img)
+        # debug_img(binary, [(x0, y0, x1 - x0, y1 - y0) for y0, y1 in merged_segs], (255, 0, 0), "debug imgs/paragraphs", f"{page_id}_col{col_idx+1:02d}_paragraphs.png")
 
         total_row_segments += len(row_segs)
         total_merged_segments += len(merged_segs)
