@@ -34,7 +34,7 @@ def find_segments(hist: np.ndarray, min_thresh: int = 1) -> List[Tuple[int, int]
    
     return segments
 
-# This is REQUIRED to remove certain weird pickups where dangling descenders (e.g. p, y, g) gets registered as a row
+# This is REQUIRED to remove certain weird pickups where iffy noise gets registered as a row
 def filter_segments(segments: List[Tuple[int, int]], min_size: int = 15) -> List[Tuple[int, int]]:
     return [(start, end) for start, end in segments if end - start >= min_size]
 
