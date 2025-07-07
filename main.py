@@ -5,24 +5,6 @@ import numpy as np
 from typing import List, Tuple, Optional
 
 
-def binarize_image(gray_img: np.ndarray) -> np.ndarray:
-    """
-    Binarize a grayscale image using Otsu's method with inversion.
-    Includes adaptive preprocessing for better results.
-    """
-    # Apply slight Gaussian blur to reduce noise
-    blurred = cv2.GaussianBlur(gray_img, (3, 3), 0)
-   
-    # Use Otsu's method
-    _, binary = cv2.threshold(
-        blurred,
-        0,
-        255,
-        cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU
-    )
-    return binary
-
-
 def compute_projection(binary: np.ndarray, axis: int) -> np.ndarray:
     """
     Compute the projection histogram of a binary image.
@@ -114,9 +96,7 @@ def filter_segments(segments: List[Tuple[int, int]], min_size: int = 15) -> List
 
 
 def detect_tables(binary: np.ndarray) -> np.ndarray:
-    """
-    Enhanced table detection using multiple morphological operations.
-    """
+
     h, w = binary.shape
     mask = np.zeros_like(binary, dtype=np.uint8)
    
@@ -124,7 +104,7 @@ def detect_tables(binary: np.ndarray) -> np.ndarray:
     hor_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (w // 15, 1))
     vert_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, h // 15))
    
-    hor_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, hor_kernel)
+    hor_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, hor_kernel) # MORPH_OPEN = erosion -> dilation
     vert_lines = cv2.morphologyEx(binary, cv2.MORPH_OPEN, vert_kernel)
    
     # Combine line detections
@@ -186,7 +166,7 @@ def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, par
         print(f"    Warning: Failed to save {filename}")
 
 
-# Process an img and returns the number of paragraphs extracted.s
+# Process an img and returns the number of paragraphs extracted
 def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
     page_id = os.path.splitext(os.path.basename(img_path))[0]
@@ -198,14 +178,14 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
         print(f"  Error: Could not load image {img_path}")
         return 0
    
-    binary = binarize_image(img)
+    _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
    
     # Detect and mask tables
     table_mask = detect_tables(binary)
     text_only = cv2.bitwise_and(binary, cv2.bitwise_not(table_mask))
 
     # Column segmentation
-    vert_proj = compute_projection(text_only, axis=0)
+    vert_proj = compute_projection(binary, axis=0)
     col_segs = find_segments(vert_proj, min_thresh=10)  # Slightly higher threshold
     col_segs = filter_segments(col_segs, min_size=50)  # Filter narrow columns
    
