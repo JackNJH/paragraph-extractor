@@ -91,7 +91,7 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
 
 
 # Save extracted paragraphs to imgs in specified output directory
-def save_crop(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
+def save_to_img(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
     x, y, w, h = box
    
     # Add small padding to improve readability
@@ -163,12 +163,10 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
     print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs\n")
    
-    # Create output directory
+    # Save paragraphs
     os.makedirs(out_dir, exist_ok=True)
-   
-    # Save paragraph crops
     for idx, box in enumerate(para_boxes, start=1):
-        save_crop(img, box, page_id, idx, out_dir)
+        save_to_img(img, box, page_id, idx, out_dir)
 
     return len(para_boxes)
 
