@@ -1,6 +1,5 @@
 import os
 import cv2
-import config
 import numpy as np
 from typing import List, Tuple, Optional
 
@@ -33,7 +32,7 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
     # Calculate adaptive gap if not provided
     if max_gap is None:
         max_gap = calculate_adaptive_gap(segments)
-   
+
     merged = []
     current_start, current_end = segments[0] # Take the first segment start and end as current
    
@@ -50,7 +49,7 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
     return merged # list of paragraphs
 
 
-def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 20) -> int:
+def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 30) -> int:
 
     if len(segments) < 2:
         return default_gap
@@ -109,8 +108,18 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
     # Detect blocks of paragraphs first before counting 'lines' in each
     col_histogram = np.sum(binary > 0, axis=0)
-    col_segs = find_segments(col_histogram, min_thresh=10)
+    col_segs = find_segments(col_histogram, min_thresh=5)
     col_segs = filter_segments(col_segs, min_size=50)
+    
+    # --- FOR DEBUGGING COLUMNS ---
+    # debug_img = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+    # for x0, x1 in col_segs:
+    #     cv2.rectangle(debug_img, (x0, 0), (x1, binary.shape[0]-1), (0, 255, 0), 2)
+
+    # debug_dir = os.path.join("debug imgs", "columns")
+    # os.makedirs(debug_dir, exist_ok=True)
+    # debug_path = os.path.join(debug_dir, f"{page_id}_col_segs.png")
+    # cv2.imwrite(debug_path, debug_img)
    
     print(f"  Detected {len(col_segs)} columns")
 
@@ -122,14 +131,34 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     for col_idx, (x0, x1) in enumerate(col_segs):
         col_img = binary[:, x0:x1]
        
-        row_proj = np.sum(binary > 0, axis=1)
-        row_segs = find_segments(row_proj, min_thresh=10)
+        row_proj = np.sum(col_img > 0, axis=1)
+        row_segs = find_segments(row_proj, min_thresh=5)
         row_segs = filter_segments(row_segs, min_size=5)
+
+        # --- FOR DEBUGGING ROWS ---
+        # debug_img_row = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+        # for y0, y1 in row_segs:
+        #     cv2.rectangle(debug_img_row, (x0, y0), (x1 - 1, y1), (0, 255, 255), 2)
+
+        # row_debug_dir = os.path.join("debug imgs", "rows")
+        # os.makedirs(row_debug_dir, exist_ok=True)
+        # row_debug_path = os.path.join(row_debug_dir, f"{page_id}_col{col_idx + 1}_rows.png")
+        # cv2.imwrite(row_debug_path, debug_img_row)
        
         # This merges the rows to form a paragraph
         merged_segs = merge_segments(row_segs)
-        merged_segs = filter_segments(merged_segs, min_size=20)
-       
+        merged_segs = filter_segments(merged_segs, min_size=5)
+
+    #    # --- FOR DEBUGGING PARAGRAPHS ---
+    #     debug_img = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+    #     for y0, y1 in merged_segs:
+    #         cv2.rectangle(debug_img, (x0, y0), (x1, y1), (255, 0, 0), 2)
+
+    #     debug_dir = os.path.join("debug imgs", "paragraphs")
+    #     os.makedirs(debug_dir, exist_ok=True)
+    #     debug_path = os.path.join(debug_dir, f"{page_id}_col{col_idx+1:02d}_paragraphs.png")
+    #     cv2.imwrite(debug_path, debug_img)
+
         total_row_segments += len(row_segs)
         total_merged_segments += len(merged_segs)
        
@@ -156,17 +185,18 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
 
 def main():
-    print(f"Enhanced Paragraph Extraction")
-    print(f"Input: {config.input_dir}")
-    print(f"Output: {config.output_dir}")
-    print(f"Min paragraph size: {config.min_para_size}px")
+    input_dir = "example imgs"
+    output_dir = "outputs"
+
+    print(f"Input: {input_dir}")
+    print(f"Output: {output_dir}")
    
     # Find PNG files
-    if not os.path.exists(config.input_dir):
-        print(f"Error: Input directory '{config.input_dir}' does not exist")
+    if not os.path.exists(input_dir):
+        print(f"Error: Input directory '{input_dir}' does not exist")
         return
    
-    files = [f for f in sorted(os.listdir(config.input_dir)) if f.lower().endswith(".png")]
+    files = [f for f in sorted(os.listdir(input_dir)) if f.lower().endswith(".png")]
     print(f"Found {len(files)} PNG files: {files}\n")
    
     if not files:
@@ -176,8 +206,8 @@ def main():
     # Process all pages
     total_paragraphs = 0
     for fname in files:
-        img_path = os.path.join(config.input_dir, fname)
-        para_count = extract_paragraphs(img_path, config.output_dir)
+        img_path = os.path.join(input_dir, fname)
+        para_count = extract_paragraphs(img_path, output_dir)
         total_paragraphs += para_count
    
     print(f"Total paragraphs extracted: {total_paragraphs}")
