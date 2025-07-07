@@ -76,10 +76,17 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
     if not gaps:
         return default_gap
    
-    # Use median gap as base, with reasonable bounds
-    median_gap = np.median(gaps)
-    adaptive_gap = max(min(median_gap * 1.5, 50), 10)  # Between 10-50 pixels
-   
+    # Sort gaps to identify a "natural" jump
+    sorted_gaps = sorted(gaps)
+    diffs = [b - a for a, b in zip(sorted_gaps, sorted_gaps[1:])]
+
+    if not diffs:
+        return default_gap
+
+    # Find the largest jump between two gaps, that can differentiate line vs paragraph spacing
+    max_jump_idx = np.argmax(diffs)
+    adaptive_gap = sorted_gaps[max_jump_idx] #  the biggest disparity found between gaps as paragraph break
+
     return int(adaptive_gap)
 
 
