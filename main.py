@@ -5,6 +5,8 @@ from typing import List, Tuple, Optional
 
 # Use for debugging during dev, visualizes columns/rows/paragraphs
 def debug_img(img: np.ndarray, segments: list[tuple[int, int, int, int]], color: tuple[int, int, int], out_dir: str, filename: str) -> None:
+    
+    # Convert to BGR for colored lines
     debug_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     # No y coords for columns cause info isn't known yet
@@ -22,6 +24,7 @@ def find_segments(hist: np.ndarray, min_thresh: int = 1) -> List[Tuple[int, int]
     in_seg = False
     start = 0
    
+    # Scanning through list to find regions of non-zero values (meaning these r content segments)
     for idx, val in enumerate(hist):
         if val > min_thresh and not in_seg:
             start = idx
@@ -68,7 +71,7 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
     if len(segments) < 2:
         return default_gap
    
-    # Calculate gaps between consecutive segments
+    # Calculate gaps between rows to distinguish paragraph breaks
     gaps = []
     for i in range(len(segments) - 1):
         gap = segments[i + 1][0] - segments[i][1]
