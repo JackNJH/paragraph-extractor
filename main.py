@@ -187,7 +187,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
 
 def main():
-    input_dir = "example_imgs"
+    input_dir = "Converted Paper (8)"
     output_dir = "outputs"
    
     # Find PNG files
