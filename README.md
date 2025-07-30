@@ -15,7 +15,7 @@ A project that automatically extracts paragraphs from document images using comp
 
 ## How to Run
 
-1. Place your document images (PNG format) in the `example_imgs` directory or use the images provided
+1. Place your document images (PNG format) in the `Converted Paper (8)` directory or use the images provided
 2. Install numpy if not already installed:
     ```bash
     pip install opencv-python numpy
