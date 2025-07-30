@@ -6,7 +6,7 @@ A project that automatically extracts paragraphs from document images using comp
 
 | Example Image | Output |
 |--------|----------------|
-| <img src="example_imgs/007.png" style="width: 45vw; height: auto;"> | <img src="readMe_imgs/exampleOutput.png" style="width: 45vw; height: auto;"> |
+| <img src="Converted Paper (8)/007.png" style="width: 45vw; height: auto;"> | <img src="readMe_imgs/exampleOutput.png" style="width: 45vw; height: auto;"> |
 
 ## Requirements
 
