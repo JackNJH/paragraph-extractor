@@ -13,6 +13,7 @@ def debug_img(img: np.ndarray, segments: list[tuple[int, int, int, int]], color:
     for x, y, w, h in segments:
         cv2.rectangle(debug_img, (x, y), (x + w, y + h), color, 2)
 
+    # Save the images to a separate debug folder
     debug_out_dir = os.path.join("debug imgs", out_dir)
     os.makedirs(debug_out_dir, exist_ok=True)
     cv2.imwrite(os.path.join(debug_out_dir, filename), debug_img)
@@ -20,19 +21,23 @@ def debug_img(img: np.ndarray, segments: list[tuple[int, int, int, int]], color:
 
 # Define segment areas based on 1D histogram given
 def find_segments(hist: np.ndarray, min_thresh: int = 1) -> List[Tuple[int, int]]:
-    segments = []
-    in_seg = False
-    start = 0
+    segments = []       # stores the start and end pixel position of each content block
+    in_seg = False      # check for current idx status
+    start = 0           # start index of a segment
    
     # Scanning through list to find regions of non-zero values (meaning these r content segments)
     for idx, val in enumerate(hist):
+
+        # If value is higher than threshold and in_seg status = false -> start a segment
         if val > min_thresh and not in_seg:
             start = idx
             in_seg = True
+        # If value drops below threshold -> segment ends
         elif val <= min_thresh and in_seg:
             segments.append((start, idx))
             in_seg = False
    
+    # If the image ends while still in_seg = true, add to the last idx
     if in_seg:
         segments.append((start, len(hist)))
    
@@ -51,7 +56,7 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
         max_gap = calculate_adaptive_gap(segments)
 
     merged = []
-    current_start, current_end = segments[0] # Take the first segment start and end as current
+    current_start, current_end = segments[0] # take the first segment start and end as current
    
    # If the NEXT segment's start doesn't exceed map_gap, merge
     for next_start, next_end in segments[1:]:
@@ -65,15 +70,16 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
     merged.append((current_start, current_end))
     return merged # list of paragraphs
 
-
+# Calculate gaps between rows to distinguish paragraph breaks
 def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 30) -> int:
 
     if len(segments) < 2:
-        return default_gap
+        return default_gap # Not enough segment samples to guess adaptive value
    
-    # Calculate gaps between rows to distinguish paragraph breaks
-    gaps = []
-    for i in range(len(segments) - 1):
+    gaps = [] # store all distance between segments
+
+    # Find all gaps between segments by taking end of segment(1) - start of segment(2)
+    for i in range(len(segments) - 1): 
         gap = segments[i + 1][0] - segments[i][1]
         if gap > 0:
             gaps.append(gap)
@@ -83,6 +89,9 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
    
     # Sort gaps to identify a "natural" jump
     sorted_gaps = sorted(gaps)
+
+    # Compute the DIFFERENCES between each consecutive gap
+    # Core idea: if there's a sudden big jump in gap, we will catch that ltr and use as gap between paragraphs
     diffs = [b - a for a, b in zip(sorted_gaps, sorted_gaps[1:])]
 
     if not diffs:
@@ -105,11 +114,11 @@ def save_to_img(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, p
     w_pad = min(img.shape[1] - x_pad, w + 2 * padding)
     h_pad = min(img.shape[0] - y_pad, h + 2 * padding)
    
-    crop = img[y_pad:y_pad+h_pad, x_pad:x_pad+w_pad]
+    crop = img[y_pad:y_pad+h_pad, x_pad:x_pad+w_pad] # crop image w padding settings
     filename = f"{page_id}_para{para_idx:02d}.png"
     filepath = os.path.join(out_dir, filename)
    
-    success = cv2.imwrite(filepath, crop)
+    success = cv2.imwrite(filepath, crop) # save image to file
     if not success:
         print(f"    Warning: Failed to save {filename}")
 
@@ -117,17 +126,21 @@ def save_to_img(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, p
 # Process an img and returns the number of paragraphs extracted
 def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
+    # Get file name as page ID
     page_id = os.path.splitext(os.path.basename(img_path))[0]
     print(f"Processing page: {page_id}")
 
+    # Load image in grayscale to scan pixels
     img = cv2.imread(img_path, 0)
     if img is None:
         print(f"  Error: Could not load image {img_path}")
         return 0
    
+    # Convert image to binary (1,0)
     _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
-    # Detect columns of paragraphs first before counting 'lines' in each
+
+    # --------- Step 1: Detect columns ---------------
     col_histogram = np.sum(binary > 0, axis=0)
     col_segs = find_segments(col_histogram, min_thresh=5)
     col_segs = filter_segments(col_segs, min_size=50)
@@ -135,12 +148,15 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
     print(f"  Detected {len(col_segs)} columns")
 
-    para_boxes = []
-    total_row_segments = 0
-    total_merged_segments = 0
-   
-   # Detects each ROW in a column
+    para_boxes = []             # list of paragraphs
+    total_row_segments = 0      # count of line detections (before merging)
+    total_merged_segments = 0   # count of merged segments (paragraphs)
+
+
+    # --------- Step 2: For each column, detect rows ---------------
     for col_idx, (x0, x1) in enumerate(col_segs):
+
+        # Extract current column from image
         col_img = binary[:, x0:x1]
        
         row_proj = np.sum(col_img > 0, axis=1)
@@ -148,38 +164,43 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
         row_segs = filter_segments(row_segs, min_size=5)
         # debug_img(binary, [(x0, y0, x1 - x0, y1 - y0) for y0, y1 in row_segs], (0, 255, 255), "rows", f"{page_id}_col{col_idx + 1}_rows.png")
        
-        # This merges the rows to form a paragraph
+        
+        # --------- Step 3: Merge rows into paragraphs ---------------
         merged_segs = merge_segments(row_segs)
         merged_segs = filter_segments(merged_segs, min_size=5)
         # debug_img(binary, [(x0, y0, x1 - x0, y1 - y0) for y0, y1 in merged_segs], (255, 0, 0), "paragraphs", f"{page_id}_col{col_idx+1:02d}_paragraphs.png")
 
         total_row_segments += len(row_segs)
         accepted_count = 0
-        para_idx = 1
+        para_idx = 1 # paragraph number in this column
        
         print(f"    Column {col_idx + 1}: {len(row_segs)} lines → {len(merged_segs)} paragraphs")
        
+
+        # --------- Step 4: Process and save paragraphs ---------------
         for y0, y1 in merged_segs:
-            box = (x0, y0, x1 - x0, y1 - y0) # coords of top left and bottom right corner of segment
-            crop = binary[y0:y1, x0:x1]
-            h, w = crop.shape
-            pixel_density = np.sum(crop > 0) / (w * h)
+            box = (x0, y0, x1 - x0, y1 - y0) # box = (x, y, width, height)
+
+            # OPTIONAL filter that filters tables / images. Commented out for sake of assignment. 
+            # crop = binary[y0:y1, x0:x1]  # crop paragraph area from image
+            # h, w = crop.shape
+            # pixel_density = np.sum(crop > 0) / (w * h)
 
             # # This kinda works cause pictures would have higher pixel density and tables would have lower (due to spacing in cells)
             # if pixel_density > 0.3 or pixel_density < 0.11:
             #     print(f"    Skipping paragraph {para_idx:02d} in column {col_idx + 1} (likely to be image/table)")
             # else:
+
             para_boxes.append(box)
             accepted_count += 1
+            para_idx += 1 # move on to next paragraph
         
-            para_idx += 1
-        
-        total_merged_segments += accepted_count
+        total_merged_segments += accepted_count # update total
 
     print(f"  Total: {total_row_segments} line segments → {total_merged_segments} paragraphs\n")
    
-    # Save paragraphs
-    os.makedirs(out_dir, exist_ok=True)
+    # --------- Step 5: Output all paragraphs to directory ---------------
+    os.makedirs(out_dir, exist_ok=True) # make sure output folder exists
     for idx, box in enumerate(para_boxes, start=1):
         save_to_img(img, box, page_id, idx, out_dir)
 
