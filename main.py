@@ -76,6 +76,7 @@ def merge_segments(segments: List[Tuple[int, int]], max_gap: Optional[int] = Non
     merged.append((current_start, current_end))
     return merged
 
+
 # Dynamically determine what "gap" qualifies as paragraph break
 def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 30) -> int:
 
@@ -109,6 +110,7 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
     adaptive_gap = sorted_gaps[max_jump_idx] # the biggest disparity found between gaps as paragraph break
 
     return int(adaptive_gap)
+
 
 # Save cropped image based on a bounding box (paragraph area)
 def save_to_img(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
