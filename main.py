@@ -113,18 +113,18 @@ def calculate_adaptive_gap(segments: List[Tuple[int, int]], default_gap: int = 3
 
 
 # Save cropped image based on a bounding box (paragraph area)
-def save_to_img(img: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
+def save_to_img(img_color: np.ndarray, box: Tuple[int, int, int, int], page_id: str, para_idx: int, out_dir: str) -> None:
     x, y, w, h = box
    
     # Add small padding to improve readability
     padding = 10
     x_pad = max(0, x - padding)
     y_pad = max(0, y - padding)
-    w_pad = min(img.shape[1] - x_pad, w + 2 * padding)
-    h_pad = min(img.shape[0] - y_pad, h + 2 * padding)
+    w_pad = min(img_color.shape[1] - x_pad, w + 2 * padding)
+    h_pad = min(img_color.shape[0] - y_pad, h + 2 * padding)
    
     # Crop padded paragraph region
-    crop = img[y_pad:y_pad+h_pad, x_pad:x_pad+w_pad]
+    crop = img_color[y_pad:y_pad+h_pad, x_pad:x_pad+w_pad]
 
     # Construct output filename and path
     filename = f"{page_id}_para{para_idx:02d}.png"
@@ -143,14 +143,17 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
     page_id = os.path.splitext(os.path.basename(img_path))[0]
     print(f"Processing page: {page_id}")
 
-    # Load image in grayscale to scan pixels
-    img = cv2.imread(img_path, 0)
-    if img is None:
+    # Load image in grayscale, all binary operations will be operated on img_grau
+    img_gray = cv2.imread(img_path, 0)
+
+    # Keep a colored version for final crop
+    img_color = cv2.imread(img_path)
+    if img_gray is None:
         print(f"  Error: Could not load image {img_path}")
         return 0
    
     # Convert image to binary: text becomes white (255), background becomes black (0)
-    _, binary = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, binary = cv2.threshold(img_gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
 
 
     # --------- Step 1: Detect columns ---------------
@@ -223,7 +226,7 @@ def extract_paragraphs(img_path: str, out_dir: str) -> int:
 
     # Save to image for each paragraph extracted in current page
     for idx, box in enumerate(para_boxes, start=1):
-        save_to_img(img, box, page_id, idx, out_dir)
+        save_to_img(img_color, box, page_id, idx, out_dir) # pass colored image to crop
 
     return len(para_boxes)
 
